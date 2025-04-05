@@ -74,7 +74,6 @@ jobs:
             mingw-w64-x86_64-libvorbis
             mingw-w64-x86_64-flac
 
-      # Set the correct vcpkg triplet based on preset BEFORE running setup
       - name: Set VCPKG Triplet Env Var (Windows MSVC)
         if: runner.os == 'Windows' && !contains(matrix.preset.name, 'msys2')
         run: |
@@ -85,7 +84,7 @@ jobs:
             echo "Setting VCPKG_DEFAULT_TRIPLET=x64-windows"
             echo "VCPKG_DEFAULT_TRIPLET=x64-windows" >> $GITHUB_ENV
           fi
-        shell: bash # Important to run this logic in bash
+        shell: bash
 
       - name: Setup vcpkg and Install Dependencies (Windows MSVC)
         if: runner.os == 'Windows' && !contains(matrix.preset.name, 'msys2')
@@ -93,16 +92,11 @@ jobs:
         with:
           vcpkgDirectory: '${{ runner.temporary }}/vcpkg'
           vcpkgGitCommitId: 'b02e341c927f16d991edbd915d8ea43eac52096c'
-          # Tell the action to run 'vcpkg install' based on vcpkg.json
-          # It will use the VCPKG_DEFAULT_TRIPLET environment variable set above
-          runVcpkgInstall: true
+          runVcpkgInstall: true # Installs based on vcpkg.json and VCPKG_DEFAULT_TRIPLET
 
-      # Set VCPKG_ROOT AFTER vcpkg is checked out by the action above
       - name: Export VCPKG_ROOT (Windows MSVC)
         if: runner.os == 'Windows' && !contains(matrix.preset.name, 'msys2')
         run: echo "VCPKG_ROOT=${{ runner.temporary }}/vcpkg" >> $GITHUB_ENV
-
-      # REMOVED the separate vcpkg install step that was causing errors
 
       - name: Setup ccache (Unix)
         uses: hendrikmuhs/ccache-action@v1.2
@@ -115,7 +109,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            build-essential ninja-build ccache git pkg-config \
+            build-essential cmake ninja-build ccache git pkg-config \
             libgl1-mesa-dev libudev-dev libxrandr-dev libxcursor-dev libxi-dev \
             libopenal-dev libflac-dev libvorbis-dev libfreetype-dev
 
@@ -142,8 +136,9 @@ jobs:
         run: |
           export DEBIAN_FRONTEND=noninteractive
           apt-get update -qq
+          # *** Added cmake here ***
           apt-get install -y --no-install-recommends \
-            build-essential ninja-build git pkg-config \
+            build-essential cmake ninja-build git pkg-config \
             libgl1-mesa-dev libudev-dev libxrandr-dev libxcursor-dev libxi-dev \
             libopenal-dev libflac-dev libvorbis-dev libfreetype-dev
 
@@ -151,14 +146,25 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew update --quiet
-          brew install ninja ccache pkg-config freetype openal-soft libvorbis flac
+          brew install cmake ninja ccache pkg-config freetype openal-soft libvorbis flac
 
       # --- Configure Step (Unified) ---
       - name: Configure Build using Preset
         shell: bash
         run: |
-          # VCPKG_ROOT is now set for Windows MSVC builds, preset should find toolchain
-          cmake --preset ${{ matrix.preset.name }}
+          # Add MSYS2 path explicitly just before cmake call for robustness
+          if [[ "${{ runner.os }}" == "Windows" && "${{ contains(matrix.preset.name, 'msys2') }}" == "true" ]]; then
+             export PATH=/mingw64/bin:$PATH
+          fi
+
+          if [[ "${{ runner.os }}" == "Windows" && "${{ !contains(matrix.preset.name, 'msys2') }}" == "true" ]]; then
+             toolchain_arg="-DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+             echo "Using toolchain arg: ${toolchain_arg}"
+          else
+             toolchain_arg=""
+          fi
+
+          cmake --preset ${{ matrix.preset.name }} ${toolchain_arg}
 
       # --- Build Step (Unified) ---
       - name: Build Project
