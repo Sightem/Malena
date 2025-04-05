@@ -24,7 +24,14 @@
       "name": "base-unix",
       "hidden": true,
       "inherits": "base-common",
-      "condition": { "type": "not", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "condition": {
+        "type": "not",
+        "condition": {
+          "type": "equals",
+          "lhs": "${hostSystemName}",
+          "rhs": "Windows"
+        }
+      },
       "generator": "Ninja",
       "cacheVariables": {
         "MALENA_USE_SYSTEM_SFML": "OFF",
