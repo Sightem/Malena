@@ -87,18 +87,18 @@ jobs:
         shell: bash
 
       - name: Setup vcpkg and Install Dependencies (Windows MSVC)
+        id: vcpkg # *** Give the step an ID to access its outputs ***
         if: runner.os == 'Windows' && !contains(matrix.preset.name, 'msys2')
         uses: lukka/run-vcpkg@v11
         with:
-          # *** Removed vcpkgDirectory - Use action's default location ***
+          # Use action's default location for vcpkg checkout
           vcpkgGitCommitId: 'b02e341c927f16d991edbd915d8ea43eac52096c'
-          # runVcpkgInstall will use VCPKG_DEFAULT_TRIPLET set above
           runVcpkgInstall: true
 
       - name: Export VCPKG_ROOT (Windows MSVC)
         if: runner.os == 'Windows' && !contains(matrix.preset.name, 'msys2')
-        # Still export it in case other steps need it, but CMake should find toolchain from env now
-        run: echo "VCPKG_ROOT=${{ runner.temporary }}/vcpkg" >> $GITHUB_ENV # Note: Default path might differ slightly, but env var is key
+        # Export the path determined by the previous step's output
+        run: echo "VCPKG_ROOT=${{ steps.vcpkg.outputs.vcpkgDirectory }}" >> $GITHUB_ENV
 
       - name: Setup ccache (Unix)
         uses: hendrikmuhs/ccache-action@v1.2
@@ -153,20 +153,27 @@ jobs:
       - name: Configure Build using Preset
         shell: bash
         run: |
+          cmake_extra_args="" # Initialize empty
+
           # MSYS2 Specific Setup
           if [[ "${{ runner.os }}" == "Windows" && "${{ contains(matrix.preset.name, 'msys2') }}" == "true" ]]; then
              export PATH=/mingw64/bin:$PATH
-             # *** Explicitly set CMAKE_MAKE_PROGRAM for Ninja ***
-             cmake_extra_args="-DCMAKE_MAKE_PROGRAM=/mingw64/bin/ninja.exe"
-          else
-             cmake_extra_args=""
+             # No CMAKE_MAKE_PROGRAM override, rely on PATH + preset generator
           fi
 
-          # Windows MSVC Specific Setup - No longer overriding toolchain file here
-          # CMake should automatically find it via environment set by run-vcpkg
+          # Windows MSVC Specific Setup
+          if [[ "${{ runner.os }}" == "Windows" && "${{ !contains(matrix.preset.name, 'msys2') }}" == "true" ]]; then
+             # *** Use forward slashes and quote the path for CMake command line ***
+             # *** Access VCPKG_ROOT reliably via env context ***
+             toolchain_path="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
+             echo "Attempting to use Toolchain File: ${toolchain_path}"
+             # Add quoting suitable for bash command line interpretation
+             cmake_extra_args="-DCMAKE_TOOLCHAIN_FILE=\"${toolchain_path}\""
+          fi
 
           # Run cmake with preset and potential extra args
-          cmake --preset ${{ matrix.preset.name }} ${cmake_extra_args}
+          # Use eval to handle potential quoting issues in extra args correctly
+          eval cmake --preset ${{ matrix.preset.name }} ${cmake_extra_args}
 
       # --- Build Step (Unified) ---
       - name: Build Project
@@ -182,7 +189,6 @@ jobs:
           else
             config_flag=""
           fi
-          # Use the build preset name, which should match the configure preset name
           cmake --build --preset ${{ matrix.preset.name }} ${config_flag}
 
       # Optional Test Step ...
