@@ -96,6 +96,7 @@ jobs:
 
       - name: Export VCPKG_ROOT (Windows MSVC)
         if: runner.os == 'Windows' && !contains(matrix.preset.name, 'msys2')
+        # Ensure VCPKG_ROOT is available for subsequent steps, especially Configure
         run: echo "VCPKG_ROOT=${{ runner.temporary }}/vcpkg" >> $GITHUB_ENV
 
       - name: Setup ccache (Unix)
@@ -109,7 +110,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build ccache git pkg-config \
+            build-essential cmake ninja-build ccache git pkg-config ca-certificates \
             libgl1-mesa-dev libudev-dev libxrandr-dev libxcursor-dev libxi-dev \
             libopenal-dev libflac-dev libvorbis-dev libfreetype-dev
 
@@ -117,7 +118,7 @@ jobs:
         if: contains(matrix.preset.name, 'fedora')
         run: |
           dnf install -y \
-            gcc gcc-c++ cmake ninja-build git pkgconf \
+            gcc gcc-c++ cmake ninja-build git pkgconf ca-certificates \
             libXrandr-devel libXcursor-devel libXi-devel systemd-devel \
             flac-devel libvorbis-devel mesa-libGL-devel mesa-libEGL-devel \
             freetype-devel openal-soft-devel
@@ -127,7 +128,7 @@ jobs:
         run: |
           pacman -Syu --noconfirm
           pacman -S --noconfirm --needed \
-            base-devel cmake ninja git pkgconf \
+            base-devel cmake ninja git pkgconf ca-certificates \
             libxrandr libxcursor libxi systemd \
             flac libvorbis mesa freetype2 openal
 
@@ -136,9 +137,9 @@ jobs:
         run: |
           export DEBIAN_FRONTEND=noninteractive
           apt-get update -qq
-          # *** Added cmake here ***
+          # *** Added cmake AND ca-certificates ***
           apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build git pkg-config \
+            build-essential cmake ninja-build git pkg-config ca-certificates \
             libgl1-mesa-dev libudev-dev libxrandr-dev libxcursor-dev libxi-dev \
             libopenal-dev libflac-dev libvorbis-dev libfreetype-dev
 
@@ -146,25 +147,33 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew update --quiet
-          brew install cmake ninja ccache pkg-config freetype openal-soft libvorbis flac
+          # Add ca-certificates if needed, though macOS usually handles this better
+          brew install cmake ninja ccache pkg-config freetype openal-soft libvorbis flac ca-certificates
 
       # --- Configure Step (Unified) ---
       - name: Configure Build using Preset
         shell: bash
         run: |
-          # Add MSYS2 path explicitly just before cmake call for robustness
+          # MSYS2 Specific Setup
           if [[ "${{ runner.os }}" == "Windows" && "${{ contains(matrix.preset.name, 'msys2') }}" == "true" ]]; then
              export PATH=/mingw64/bin:$PATH
+             # Force Ninja generator on command line for MSYS2
+             generator_arg="-G Ninja"
+          else
+             generator_arg=""
           fi
 
+          # Windows MSVC Specific Setup
           if [[ "${{ runner.os }}" == "Windows" && "${{ !contains(matrix.preset.name, 'msys2') }}" == "true" ]]; then
-             toolchain_arg="-DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+             # *** Use ${{ env.VCPKG_ROOT }} for reliable expansion by Actions ***
+             toolchain_arg="-DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
              echo "Using toolchain arg: ${toolchain_arg}"
           else
              toolchain_arg=""
           fi
 
-          cmake --preset ${{ matrix.preset.name }} ${toolchain_arg}
+          # Run cmake with preset, potential generator override, and potential toolchain override
+          cmake --preset ${{ matrix.preset.name }} ${generator_arg} ${toolchain_arg}
 
       # --- Build Step (Unified) ---
       - name: Build Project
@@ -180,6 +189,7 @@ jobs:
           else
             config_flag=""
           fi
+          # Use the build preset name, which should match the configure preset name
           cmake --build --preset ${{ matrix.preset.name }} ${config_flag}
 
       # Optional Test Step ...
