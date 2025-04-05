@@ -116,7 +116,7 @@
       "name": "msys2-shared-release",
       "inherits": "base-msys2",
       "displayName": "MSYS2 Shared Release",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_SHARED_LIBS": "ON", "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "OFF" } // LTO OFF as per original script
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_SHARED_LIBS": "ON", "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "OFF" }
     },
     {
       "name": "msys2-shared-relwithdebinfo",
@@ -134,7 +134,7 @@
       "name": "msys2-static-release",
       "inherits": "base-msys2",
       "displayName": "MSYS2 Static Release",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_SHARED_LIBS": "OFF", "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "OFF" } // LTO OFF
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_SHARED_LIBS": "OFF", "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "OFF" }
     },
     {
       "name": "msys2-static-relwithdebinfo",
