@@ -1,0 +1,200 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "base-common",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_POLICY_VERSION_MINIMUM": "3.5"
+      },
+      "binaryDir": "${sourceDir}/build/${presetName}"
+    },
+    {
+      "name": "base-windows",
+      "hidden": true,
+      "inherits": "base-common",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "generator": "Visual Studio 17 2022",
+      "cacheVariables": {
+        "MALENA_USE_SYSTEM_SFML": "ON",
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      }
+    },
+    {
+      "name": "base-unix",
+      "hidden": true,
+      "inherits": "base-common",
+      "condition": { "type": "not", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "generator": "Ninja",
+      "cacheVariables": {
+        "MALENA_USE_SYSTEM_SFML": "OFF",
+        "CMAKE_C_COMPILER_LAUNCHER": "ccache",
+        "CMAKE_CXX_COMPILER_LAUNCHER": "ccache"
+      }
+    },
+    {
+      "name": "base-msys2",
+      "hidden": true,
+      "inherits": "base-common",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "MALENA_USE_SYSTEM_SFML": "OFF",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "base-linux-clang",
+      "hidden": true,
+      "inherits": "base-unix",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "base-container",
+      "hidden": true,
+      "inherits": "base-unix",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER_LAUNCHER": "",
+        "CMAKE_CXX_COMPILER_LAUNCHER": ""
+      }
+    },
+
+    {
+      "name": "windows-shared-debug",
+      "inherits": "base-windows",
+      "displayName": "Windows Shared Debug (VS2022)",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "BUILD_SHARED_LIBS": "ON", "VCPKG_TARGET_TRIPLET": "x64-windows" }
+    },
+    {
+      "name": "windows-shared-release",
+      "inherits": "base-windows",
+      "displayName": "Windows Shared Release (VS2022)",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_SHARED_LIBS": "ON", "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON", "VCPKG_TARGET_TRIPLET": "x64-windows" }
+    },
+    {
+      "name": "windows-shared-relwithdebinfo",
+      "inherits": "base-windows",
+      "displayName": "Windows Shared RelWithDebInfo (VS2022)",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "BUILD_SHARED_LIBS": "ON", "VCPKG_TARGET_TRIPLET": "x64-windows" }
+    },
+    {
+      "name": "windows-static-debug",
+      "inherits": "base-windows",
+      "displayName": "Windows Static Debug (VS2022)",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug", "BUILD_SHARED_LIBS": "OFF", "VCPKG_TARGET_TRIPLET": "x64-windows-static" }
+    },
+    {
+      "name": "windows-static-release",
+      "inherits": "base-windows",
+      "displayName": "Windows Static Release (VS2022)",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_SHARED_LIBS": "OFF", "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON", "VCPKG_TARGET_TRIPLET": "x64-windows-static" }
+    },
+    {
+      "name": "windows-static-relwithdebinfo",
+      "inherits": "base-windows",
+      "displayName": "Windows Static RelWithDebInfo (VS2022)",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "BUILD_SHARED_LIBS": "OFF", "VCPKG_TARGET_TRIPLET": "x64-windows-static" }
+    },
+
+    {
+      "name": "msys2-shared-relwithdebinfo",
+      "inherits": "base-msys2",
+      "displayName": "MSYS2 Shared RelWithDebInfo",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "BUILD_SHARED_LIBS": "ON" }
+    },
+    {
+      "name": "msys2-shared-release",
+      "inherits": "base-msys2",
+      "displayName": "MSYS2 Shared Release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_SHARED_LIBS": "ON", "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "OFF" } // LTO was disabled for MSYS2 in your script
+    },
+
+    {
+      "name": "linux-gcc-shared-release",
+      "inherits": "base-unix",
+      "displayName": "Linux GCC Shared Release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_SHARED_LIBS": "ON", "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON" }
+    },
+    {
+      "name": "linux-gcc-shared-relwithdebinfo",
+      "inherits": "base-unix",
+      "displayName": "Linux GCC Shared RelWithDebInfo",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "BUILD_SHARED_LIBS": "ON" }
+    },
+    {
+      "name": "linux-gcc-static-release",
+      "inherits": "base-unix",
+      "displayName": "Linux GCC Static Release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_SHARED_LIBS": "OFF", "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON" }
+    },
+    {
+      "name": "linux-gcc-static-relwithdebinfo",
+      "inherits": "base-unix",
+      "displayName": "Linux GCC Static RelWithDebInfo",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "BUILD_SHARED_LIBS": "OFF" }
+    },
+
+    {
+      "name": "linux-clang-shared-release",
+      "inherits": "base-linux-clang",
+      "displayName": "Linux Clang Shared Release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_SHARED_LIBS": "ON", "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON" }
+    },
+    {
+      "name": "linux-clang-shared-relwithdebinfo",
+      "inherits": "base-linux-clang",
+      "displayName": "Linux Clang Shared RelWithDebInfo",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "BUILD_SHARED_LIBS": "ON" }
+    },
+
+    {
+      "name": "macos-shared-release",
+      "inherits": "base-unix",
+      "displayName": "macOS Shared Release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_SHARED_LIBS": "ON", "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON" }
+    },
+    {
+      "name": "macos-shared-relwithdebinfo",
+      "inherits": "base-unix",
+      "displayName": "macOS Shared RelWithDebInfo",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "BUILD_SHARED_LIBS": "ON" }
+    },
+
+    {
+      "name": "fedora-shared-release",
+      "inherits": "base-container",
+      "displayName": "Fedora Shared Release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_SHARED_LIBS": "ON", "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON" }
+    },
+    {
+      "name": "archlinux-shared-release",
+      "inherits": "base-container",
+      "displayName": "ArchLinux Shared Release",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_SHARED_LIBS": "ON", "CMAKE_INTERPROCEDURAL_OPTIMIZATION": "ON" }
+    }
+  ],
+
+  "buildPresets": [
+    { "name": "windows-shared-debug", "configurePreset": "windows-shared-debug"},
+    { "name": "windows-shared-release", "configurePreset": "windows-shared-release"},
+    { "name": "windows-shared-relwithdebinfo", "configurePreset": "windows-shared-relwithdebinfo"},
+    { "name": "windows-static-debug", "configurePreset": "windows-static-debug"},
+    { "name": "windows-static-release", "configurePreset": "windows-static-release"},
+    { "name": "windows-static-relwithdebinfo", "configurePreset": "windows-static-relwithdebinfo"},
+    { "name": "msys2-shared-relwithdebinfo", "configurePreset": "msys2-shared-relwithdebinfo"},
+    { "name": "msys2-shared-release", "configurePreset": "msys2-shared-release"},
+    { "name": "linux-gcc-shared-release", "configurePreset": "linux-gcc-shared-release"},
+    { "name": "linux-gcc-shared-relwithdebinfo", "configurePreset": "linux-gcc-shared-relwithdebinfo"},
+    { "name": "linux-gcc-static-release", "configurePreset": "linux-gcc-static-release"},
+    { "name": "linux-gcc-static-relwithdebinfo", "configurePreset": "linux-gcc-static-relwithdebinfo"},
+    { "name": "linux-clang-shared-release", "configurePreset": "linux-clang-shared-release"},
+    { "name": "linux-clang-shared-relwithdebinfo", "configurePreset": "linux-clang-shared-relwithdebinfo"},
+    { "name": "macos-shared-release", "configurePreset": "macos-shared-release"},
+    { "name": "macos-shared-relwithdebinfo", "configurePreset": "macos-shared-relwithdebinfo"},
+    { "name": "fedora-shared-release", "configurePreset": "fedora-shared-release"},
+    { "name": "archlinux-shared-release", "configurePreset": "archlinux-shared-release"}
+  ]
+}
