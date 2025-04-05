@@ -1,3 +1,4 @@
+# .github/workflows/ci.yml
 name: CI
 
 on: [push, pull_request]
@@ -6,166 +7,207 @@ defaults:
   run:
     shell: bash
 
-env:
-  BUILD_TYPE: RelWithDebInfo
-
 jobs:
   build:
-    name: ${{ matrix.platform.name }} ${{ matrix.config.name }}
-    runs-on: ${{ matrix.platform.os }}
-    container: ${{ matrix.platform.container }}
-
-    defaults:
-      run:
-        shell: ${{ matrix.platform.shell || 'bash' }}
+    # Use the displayName from the preset for a clearer job name in GitHub UI
+    name: ${{ matrix.preset.displayName }}
+    runs-on: ${{ matrix.preset.os }}
+    container: ${{ matrix.preset.container }}
 
     strategy:
       fail-fast: false
       matrix:
-        platform:
-          - { name: Windows VS2019, os: windows-2019 }
-          - { name: Windows VS2022, os: windows-2022 }
-          - { name: Windows MSYS2, os: windows-2022, shell: 'msys2 {0}' }
-          - { name: Linux GCC, os: ubuntu-latest }
-          - { name: Linux Clang, os: ubuntu-latest, flags: -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ }
-          - { name: Ubuntu 22.04, os: ubuntu-22.04 }
-          - { name: Fedora, os: ubuntu-latest, container: "fedora:latest" }
-          - { name: ArchLinux, os: ubuntu-latest, container: "archlinux:latest" }
-          - { name: macOS, os: macos-latest }
-        config:
-          - { name: Shared Debug, flags: -DBUILD_SHARED_LIBS=TRUE -DCMAKE_BUILD_TYPE=Debug }
-          - { name: Shared Release, flags: -DBUILD_SHARED_LIBS=TRUE -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON }
-          - { name: Shared RelWithDebInfo, flags: -DBUILD_SHARED_LIBS=TRUE -DCMAKE_BUILD_TYPE=RelWithDebInfo }
-          - { name: Static Debug, flags: -DBUILD_SHARED_LIBS=FALSE -DCMAKE_BUILD_TYPE=Debug }
-          - { name: Static Release, flags: -DBUILD_SHARED_LIBS=FALSE -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON }
-          - { name: Static RelWithDebInfo, flags: -DBUILD_SHARED_LIBS=FALSE -DCMAKE_BUILD_TYPE=RelWithDebInfo }
-        exclude:
-          - platform: { name: Windows VS2019 }
-            config: { name: Shared Debug }
-          - platform: { name: Windows VS2019 }
-            config: { name: Static Debug }
-          - platform: { name: Windows MSYS2 }
-            config: { name: Shared Debug }
-          - platform: { name: Windows MSYS2 }
-            config: { name: Static Debug }
-          - platform: { name: Linux Clang }
-            config: { name: Shared Debug }
-          - platform: { name: Linux Clang }
-            config: { name: Static Debug }
-          - platform: { name: Ubuntu 22.04 }
-            config: { name: Shared Debug }
-          - platform: { name: Ubuntu 22.04 }
-            config: { name: Static Debug }
-          - platform: { name: Fedora }
-            config: { name: Shared Debug }
-          - platform: { name: Fedora }
-            config: { name: Static Debug }
-          - platform: { name: ArchLinux }
-            config: { name: Shared Debug }
-          - platform: { name: ArchLinux }
-            config: { name: Static Debug }
-          - platform: { name: macOS }
-            config: { name: Shared Debug }
-          - platform: { name: macOS }
-            config: { name: Static Debug }
+        # Define the matrix based on the presets you want to test in CI
+        # Each entry should correspond to a 'name' in your CMakePresets.json
+        # This list is based on your provided matrix. Add/remove as needed.
+        preset:
+          # Windows VS2022 Presets (using vcpkg)
+          - { name: windows-shared-relwithdebinfo, os: windows-2022, displayName: 'Win VS2022 Shared RelWithDebInfo' }
+          - { name: windows-shared-release,        os: windows-2022, displayName: 'Win VS2022 Shared Release' }
+          - { name: windows-static-relwithdebinfo, os: windows-2022, displayName: 'Win VS2022 Static RelWithDebInfo' }
+          - { name: windows-static-release,        os: windows-2022, displayName: 'Win VS2022 Static Release' }
 
-          - platform: { name: Windows VS2019 }
-            config: { name: Static RelWithDebInfo }
-          - platform: { name: Windows MSYS2 }
-            config: { name: Static RelWithDebInfo }
-          - platform: { name: Fedora }
-            config: { name: Static RelWithDebInfo }
-          - platform: { name: ArchLinux }
-            config: { name: Static RelWithDebInfo }
+          # MSYS2 Preset (using FetchContent)
+          - { name: msys2-shared-relwithdebinfo,   os: windows-2022, displayName: 'Win MSYS2 Shared RelWithDebInfo', shell: 'msys2 {0}' }
+          - { name: msys2-shared-release,          os: windows-2022, displayName: 'Win MSYS2 Shared Release',      shell: 'msys2 {0}' }
+          # Consider adding msys2-static-* presets if you have them defined and want to test them
+          - { name: msys2-static-relwithdebinfo,   os: windows-2022, displayName: 'Win MSYS2 Static RelWithDebInfo', shell: 'msys2 {0}' }
+          - { name: msys2-static-release,          os: windows-2022, displayName: 'Win MSYS2 Static Release',      shell: 'msys2 {0}' }
+
+          # Linux GCC Presets (using FetchContent on Ubuntu runner)
+          - { name: linux-gcc-shared-relwithdebinfo, os: ubuntu-latest, displayName: 'Linux GCC Shared RelWithDebInfo' }
+          - { name: linux-gcc-shared-release,        os: ubuntu-latest, displayName: 'Linux GCC Shared Release' }
+          - { name: linux-gcc-static-relwithdebinfo, os: ubuntu-latest, displayName: 'Linux GCC Static RelWithDebInfo' }
+          - { name: linux-gcc-static-release,        os: ubuntu-latest, displayName: 'Linux GCC Static Release' }
+
+          # Linux Clang Presets (using FetchContent on Ubuntu runner)
+          - { name: linux-clang-shared-relwithdebinfo, os: ubuntu-latest, displayName: 'Linux Clang Shared RelWithDebInfo' }
+          - { name: linux-clang-shared-release,        os: ubuntu-latest, displayName: 'Linux Clang Shared Release' }
+          # Consider adding linux-clang-static-* presets if defined
+          - { name: linux-clang-static-relwithdebinfo, os: ubuntu-latest, displayName: 'Linux Clang Static RelWithDebInfo' }
+          - { name: linux-clang-static-release,        os: ubuntu-latest, displayName: 'Linux Clang Static Release' }
+
+          # macOS Presets (using FetchContent)
+          - { name: macos-shared-relwithdebinfo,   os: macos-latest,  displayName: 'macOS Shared RelWithDebInfo' }
+          - { name: macos-shared-release,          os: macos-latest,  displayName: 'macOS Shared Release' }
+          - { name: macos-static-relwithdebinfo,   os: macos-latest,  displayName: 'macOS Static RelWithDebInfo' }
+          - { name: macos-static-release,          os: macos-latest,  displayName: 'macOS Static Release' }
+
+          # Container Presets (using FetchContent)
+          - { name: fedora-shared-release,         os: ubuntu-latest, container: "fedora:latest", displayName: 'Fedora Container Shared Release' }
+          - { name: fedora-shared-relwithdebinfo,   os: ubuntu-latest, container: "fedora:latest", displayName: 'Fedora Container RelWithDebInfo' }
+          - { name: fedora-static-release,         os: ubuntu-latest, container: "fedora:latest", displayName: 'Fedora Container Static Release' }
+          - { name: fedora-static-relwithdebinfo,   os: ubuntu-latest, container: "fedora:latest", displayName: 'Fedora Container Static RelWithDebInfo' }
+          # Consider adding fedora-static-* presets if defined
+          - { name: archlinux-shared-release,      os: ubuntu-latest, container: "archlinux:latest", displayName: 'ArchLinux Container Shared Release' }
+          - { name: archlinux-shared-relwithdebinfo, os: ubuntu-latest, container: "archlinux:latest", displayName: 'ArchLinux Container RelWithDebInfo' }
+          - { name: archlinux-static-release,      os: ubuntu-latest, container: "archlinux:latest", displayName: 'ArchLinux Container Static Release' }
+          - { name: archlinux-static-relwithdebinfo, os: ubuntu-latest, container: "archlinux:latest", displayName: 'ArchLinux Container Static RelWithDebInfo' }
+          # Consider adding archlinux-static-* presets if defined
+          - { name: ubuntu-shared-release,         os: ubuntu-latest, container: "ubuntu:latest", displayName: 'Ubuntu Container Shared Release' }
+          - { name: ubuntu-shared-relwithdebinfo,   os: ubuntu-latest, container: "ubuntu:latest", displayName: 'Ubuntu Container RelWithDebInfo' }
+          - { name: ubuntu-static-relwithdebinfo,   os: ubuntu-latest, container: "ubuntu:latest", displayName: 'Ubuntu Container Static RelWithDebInfo' }
+          - { name: ubuntu-static-release,         os: ubuntu-latest, container: "ubuntu:latest", displayName: 'Ubuntu Container Static Release' }
+          # Consider adding ubuntu-*-relwithdebinfo presets if defined
+
+        # No complex excludes needed as matrix defines exact runs
+
+    # Apply shell override for specific matrix entries (like MSYS2)
+    defaults:
+      run:
+        shell: ${{ matrix.preset.shell || 'bash' }}
 
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
+        # No submodules needed for FetchContent of SFML itself
 
-      - name: Setup MSYS2
-        if: contains(matrix.platform.name, 'MSYS2')
+      # --- Platform Specific Setup ---
+
+      - name: Setup MSYS2 Environment
+        # Run if the preset name contains 'msys2'
+        if: contains(matrix.preset.name, 'msys2')
         uses: msys2/setup-msys2@v2
         with:
           msystem: mingw64
-          update: true
+          update: true # Run pacman -Syu
           install: >-
+            git cmake ninja pkgconf
             mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            git
+            # Install runtime/build dependencies needed by SFML/FetchContent, NOT SFML itself
+            mingw-w64-x86_64-freetype
+            mingw-w64-x86_64-openal
+            mingw-w64-x86_64-libvorbis
+            mingw-w64-x86_64-flac
+            # Add any other low-level libraries SFML might link against (opengl, system libs usually present)
 
-      - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2.17
+      - name: Setup vcpkg (Windows MSVC)
+        # Run if the OS is Windows AND the preset name does NOT contain 'msys2'
+        if: runner.os == 'Windows' && !contains(matrix.preset.name, 'msys2')
+        uses: lukka/run-vcpkg@v11
         with:
-          key: ${{ runner.os }}-${{ matrix.platform.name }}-${{ matrix.config.name }}-ccache-${{ github.run_id }}
-          restore-keys: ${{ runner.os }}-${{ matrix.platform.name }}-${{ matrix.config.name }}-ccache
-          max-size: 1G
-        if: matrix.platform.container == '' && !contains(matrix.platform.name, 'MSYS2')
+          vcpkgDirectory: '${{ runner.temporary }}/vcpkg'
+          # Use the updated stable commit hash
+          vcpkgGitCommitId: 'b02e341c927f16d991edbd915d8ea43eac52096c'
 
-      - name: Install Ubuntu Dependencies
-        if: runner.os == 'Linux' && matrix.platform.container == ''
-        run: sudo apt-get update && sudo apt-get install -y libxrandr-dev libxcursor-dev libxi-dev libudev-dev libflac-dev libvorbis-dev libgl1-mesa-dev libegl1-mesa-dev libfreetype-dev
+      - name: Export VCPKG_ROOT (Windows MSVC)
+        if: runner.os == 'Windows' && !contains(matrix.preset.name, 'msys2')
+        run: echo "VCPKG_ROOT=${{ runner.temporary }}/vcpkg" >> $GITHUB_ENV
 
-      - name: Install MSYS2 Dependencies
-        if: contains(matrix.platform.name, 'MSYS2')
+      - name: Install Dependencies via vcpkg (Windows MSVC)
+        if: runner.os == 'Windows' && !contains(matrix.preset.name, 'msys2')
+        uses: lukka/run-vcpkg@v11
+        with:
+          # Ensure these components match your find_package(SFML COMPONENTS ...) call
+          vcpkgArguments: 'sfml[core,graphics,window,audio,network]'
+          # run-vcpkg action automatically uses VCPKG_ROOT from env if set
+          # Determine triplet based on 'static' keyword in preset name
+          vcpkgTriplet: ${{ contains(matrix.preset.name, 'static') && 'x64-windows-static' || 'x64-windows' }}
+
+      - name: Setup ccache (Unix)
+        # Run for non-Windows runners that are NOT containers
+        uses: hendrikmuhs/ccache-action@v1.2
+        if: runner.os != 'Windows' && matrix.preset.container == null
+        with:
+          key: ccache-${{ matrix.preset.name }}-${{ runner.os }} # More specific cache key
+
+      # Install dependencies for the standard Ubuntu runner (non-container Linux)
+      - name: Install Dependencies (Ubuntu Runner)
+        if: runner.os == 'Linux' && matrix.preset.container == null
         run: |
-          pacman -S --noconfirm mingw-w64-x86_64-sfml mingw-w64-x86_64-openal
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build ccache git pkg-config \
+            libgl1-mesa-dev libudev-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libopenal-dev libflac-dev libvorbis-dev libfreetype-dev
 
-      - name: Install Fedora Dependencies
-        if: matrix.platform.container == 'fedora:latest'
+      # Install dependencies specifically for the Fedora container
+      - name: Install Dependencies (Fedora Container)
+        if: contains(matrix.preset.name, 'fedora') # Assumes preset name indicates container type
         run: |
-          dnf install -y gcc gcc-c++ cmake make git \
+          dnf install -y \
+            gcc gcc-c++ cmake ninja-build git pkgconf \
             libXrandr-devel libXcursor-devel libXi-devel systemd-devel \
-            flac-devel libvorbis-devel mesa-libGL-devel mesa-libEGL-devel freetype-devel
+            flac-devel libvorbis-devel mesa-libGL-devel mesa-libEGL-devel \
+            freetype-devel openal-soft-devel
 
-      - name: Install ArchLinux Dependencies
-        if: matrix.platform.container == 'archlinux:latest'
+      # Install dependencies specifically for the ArchLinux container
+      - name: Install Dependencies (ArchLinux Container)
+        if: contains(matrix.preset.name, 'archlinux') # Assumes preset name indicates container type
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm base-devel cmake git \
-            libxrandr libxcursor libxi systemd-libs \
-            flac libvorbis mesa freetype2
+          pacman -S --noconfirm --needed \
+            base-devel cmake ninja git pkgconf \
+            libxrandr libxcursor libxi systemd \
+            flac libvorbis mesa freetype2 openal
 
-      - name: Configure MSYS2 Build
-        if: contains(matrix.platform.name, 'MSYS2')
+      # Install dependencies specifically for the Ubuntu container
+      - name: Install Dependencies (Ubuntu Container)
+        if: matrix.preset.container == 'ubuntu:latest' # More direct check on container image
         run: |
-          export PATH=/mingw64/bin:$PATH
-          
-          cmake_flags="${{matrix.config.flags}}"
-          cmake_flags="${cmake_flags//-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON/-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF}"
-          cmake_flags="${cmake_flags} -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
-          
-          cmake -G "Ninja" -B build ${cmake_flags} \
-            -DCMAKE_C_COMPILER=/mingw64/bin/gcc.exe \
-            -DCMAKE_CXX_COMPILER=/mingw64/bin/g++.exe
+          # Prevent interactive prompts during installs
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -qq
+          apt-get install -y --no-install-recommends \
+            build-essential ninja-build git pkg-config \
+            libgl1-mesa-dev libudev-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libopenal-dev libflac-dev libvorbis-dev libfreetype-dev
 
-      - name: Configure Linux with LTO
-        if: runner.os == 'Linux' && !contains(matrix.config.name, 'Debug') && matrix.platform.container == ''
+      # Install dependencies for the macOS runner
+      - name: Install Dependencies (macOS)
+        if: runner.os == 'macOS'
         run: |
-          cmake -B build ${{matrix.platform.flags}} ${{matrix.config.flags}} \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+          brew update --quiet
+          # Ensure required tools and SFML build dependencies are installed
+          brew install ninja ccache pkg-config freetype openal-soft libvorbis flac
 
-      - name: Configure Linux Container with LTO
-        if: runner.os == 'Linux' && !contains(matrix.config.name, 'Debug') && matrix.platform.container != ''
+      # --- Configure Step (Unified) ---
+      - name: Configure Build using Preset
+        shell: bash # Ensure consistent shell
         run: |
-          cmake -B build ${{matrix.platform.flags}} ${{matrix.config.flags}} \
-            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+          # Configure using the preset name selected from the matrix
+          # The preset handles generator, toolchain, build type, flags (like policy), etc.
+          cmake --preset ${{ matrix.preset.name }}
 
-      - name: Configure Standard
-        if: "!contains(matrix.platform.name, 'MSYS2') && !(runner.os == 'Linux' && !contains(matrix.config.name, 'Debug'))"
+      # --- Build Step (Unified) ---
+      - name: Build Project
+        shell: bash # Ensure consistent shell
         run: |
-          cmake_flags="${{matrix.platform.flags}} ${{matrix.config.flags}}"
-          cmake_flags="${cmake_flags} -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
-          
-          if [[ -n "${{ matrix.platform.container }}" ]]; then
-            cmake -B build ${cmake_flags}
+          # Build using the corresponding build preset name
+          # For multi-config generators (VS), pass --config derived from preset name
+          if [[ "${{ runner.os }}" == "Windows" && "${{ !contains(matrix.preset.name, 'msys2') }}" == "true" ]]; then
+            # Extract build type (debug, release, relwithdebinfo) from preset name
+            # Use grep -oP for Perl regex, requires grep support; alternative: sed/awk
+            build_type=$(echo "${{ matrix.preset.name }}" | grep -oP '(debug|release|relwithdebinfo)$' || echo "unknown")
+            if [[ "$build_type" == "unknown" ]]; then
+              echo "Error: Could not determine build type from preset name '${{ matrix.preset.name }}'"
+              exit 1
+            fi
+            # Capitalize first letter for MSVC Config (Debug, Release, RelWithDebInfo)
+            config_flag="--config ${build_type^}"
           else
-            cmake -B build ${cmake_flags} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+            # Single-config generators (Ninja, Make) get build type from configure step
+            config_flag=""
           fi
-
-      - name: Build
-        run: |
-          build_type="${{ contains(matrix.config.name, 'Debug') && 'Debug' || contains(matrix.config.name, 'Release') && 'Release' || 'RelWithDebInfo' }}"
-          cmake --build build --config $build_type
+          # Use the build preset name, which should match the configure preset name
+          cmake --build --preset ${{ matrix.preset.name }} ${config_flag}
