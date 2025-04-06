@@ -9,11 +9,6 @@ defaults:
   run:
     shell: bash # Default shell unless overridden
 
-env:
-# Global environment variables can go here
-# Since MALENA_BUILD_EXAMPLES defaults to OFF, we don't build examples here
-# You could set it via cmake flags if needed: -DMALENA_BUILD_EXAMPLES=ON
-
 jobs:
   build:
     # Job name dynamically generated from the matrix values
