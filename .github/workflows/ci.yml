@@ -1,194 +1,208 @@
-# .github/workflows/ci.yml
+# Continuous Integration Workflow
 name: CI
 
+# Triggers the workflow on push or pull request events
 on: [push, pull_request]
 
+# Default settings for all jobs and steps
 defaults:
   run:
-    shell: bash
+    shell: bash # Default shell unless overridden
+
+env:
+# Default build type (can be overridden by matrix, but useful as a fallback)
+# BUILD_TYPE: RelWithDebInfo # Not strictly needed as matrix defines CMAKE_BUILD_TYPE explicitly
+# Global environment variables can go here
 
 jobs:
   build:
-    name: ${{ matrix.preset.displayName }}
-    runs-on: ${{ matrix.preset.os }}
-    container: ${{ matrix.preset.container }}
+    # Job name dynamically generated from the matrix values
+    name: ${{ matrix.platform.name }} ${{ matrix.config.name }}
+    # Runner environment based on the platform matrix
+    runs-on: ${{ matrix.platform.os }}
+    # Docker container, if specified in the platform matrix
+    container: ${{ matrix.platform.container }}
 
-    strategy:
-      fail-fast: false
-      matrix:
-        # Define the matrix based on the presets you want to test in CI
-        preset:
-          # Windows VS2022 Presets (using vcpkg)
-          - { name: windows-shared-relwithdebinfo, os: windows-2022, displayName: 'Win VS2022 Shared RelWithDebInfo' }
-          - { name: windows-shared-release,        os: windows-2022, displayName: 'Win VS2022 Shared Release' }
-          - { name: windows-static-relwithdebinfo, os: windows-2022, displayName: 'Win VS2022 Static RelWithDebInfo' }
-          - { name: windows-static-release,        os: windows-2022, displayName: 'Win VS2022 Static Release' }
-
-          # MSYS2 Preset (using FetchContent)
-          - { name: msys2-shared-relwithdebinfo,   os: windows-2022, displayName: 'Win MSYS2 Shared RelWithDebInfo', shell: 'msys2 {0}' }
-          - { name: msys2-shared-release,          os: windows-2022, displayName: 'Win MSYS2 Shared Release',      shell: 'msys2 {0}' }
-
-          # Linux GCC Presets (using FetchContent on Ubuntu runner)
-          - { name: linux-gcc-shared-relwithdebinfo, os: ubuntu-latest, displayName: 'Linux GCC Shared RelWithDebInfo' }
-          - { name: linux-gcc-shared-release,        os: ubuntu-latest, displayName: 'Linux GCC Shared Release' }
-          - { name: linux-gcc-static-relwithdebinfo, os: ubuntu-latest, displayName: 'Linux GCC Static RelWithDebInfo' }
-          - { name: linux-gcc-static-release,        os: ubuntu-latest, displayName: 'Linux GCC Static Release' }
-
-          # Linux Clang Presets (using FetchContent on Ubuntu runner)
-          - { name: linux-clang-shared-relwithdebinfo, os: ubuntu-latest, displayName: 'Linux Clang Shared RelWithDebInfo' }
-          - { name: linux-clang-shared-release,        os: ubuntu-latest, displayName: 'Linux Clang Shared Release' }
-
-          # macOS Presets (using FetchContent)
-          - { name: macos-shared-relwithdebinfo,   os: macos-latest,  displayName: 'macOS Shared RelWithDebInfo' }
-          - { name: macos-shared-release,          os: macos-latest,  displayName: 'macOS Shared Release' }
-          - { name: macos-static-relwithdebinfo,   os: macos-latest,  displayName: 'macOS Static RelWithDebInfo' }
-          - { name: macos-static-release,          os: macos-latest,  displayName: 'macOS Static Release' }
-
-          # Container Presets (using FetchContent)
-          - { name: fedora-shared-release,         os: ubuntu-latest, container: "fedora:latest", displayName: 'Fedora Container Shared Release' }
-          - { name: archlinux-shared-release,      os: ubuntu-latest, container: "archlinux:latest", displayName: 'ArchLinux Container Shared Release' }
-          - { name: ubuntu-shared-release,         os: ubuntu-latest, container: "ubuntu:latest", displayName: 'Ubuntu Container Shared Release' }
-          - { name: ubuntu-static-release,         os: ubuntu-latest, container: "ubuntu:latest", displayName: 'Ubuntu Container Static Release' }
-
+    # Per-job default settings
     defaults:
       run:
-        shell: ${{ matrix.preset.shell || 'bash' }}
+        # Override shell for specific platforms (like MSYS2) if needed
+        shell: ${{ matrix.platform.shell || 'bash' }}
+
+    strategy:
+      # Prevent canceling all jobs if one fails
+      fail-fast: false
+      # Define the build matrix
+      matrix:
+        platform:
+          # --- Windows Platforms ---
+          - { name: Windows VS2019, os: windows-2019 }
+          - { name: Windows VS2022, os: windows-2022 }
+          # Note: MSYS2 uses a specific shell invocation
+          - { name: Windows MSYS2, os: windows-2022, shell: 'msys2 {0}' }
+          # --- Linux Platforms ---
+          - { name: Linux GCC, os: ubuntu-latest }
+          - { name: Linux Clang, os: ubuntu-latest, flags: -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ }
+          - { name: Ubuntu 22.04, os: ubuntu-22.04 }
+          # Container-based Linux distributions
+          - { name: Fedora, os: ubuntu-latest, container: "fedora:latest" }
+          - { name: ArchLinux, os: ubuntu-latest, container: "archlinux:latest" }
+          # --- macOS Platform ---
+          - { name: macOS, os: macos-latest }
+
+        config:
+          # --- Simplified Configurations ---
+          # 1. Shared Debug (for debug symbols and assertion checks, shared linking)
+          - { name: Shared Debug, flags: -DBUILD_SHARED_LIBS=TRUE -DCMAKE_BUILD_TYPE=Debug }
+          # 2. Shared RelWithDebInfo (optimized with debug info, shared linking, LTO enabled where applicable)
+          - { name: Shared RelWithDebInfo, flags: -DBUILD_SHARED_LIBS=TRUE -DCMAKE_BUILD_TYPE=RelWithDebInfo }
+          # 3. Static RelWithDebInfo (optimized with debug info, static linking, LTO enabled where applicable)
+          - { name: Static RelWithDebInfo, flags: -DBUILD_SHARED_LIBS=FALSE -DCMAKE_BUILD_TYPE=RelWithDebInfo }
+
+        # No 'exclude' needed now as the matrix only generates desired combinations
 
     steps:
-      - name: Checkout Repository
+      # 1. Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # --- Platform Specific Setup ---
-
-      - name: Setup MSYS2 Environment
-        if: contains(matrix.preset.name, 'msys2')
+      # 2. Setup MSYS2 environment if applicable
+      - name: Setup MSYS2
+        if: contains(matrix.platform.name, 'MSYS2')
         uses: msys2/setup-msys2@v2
         with:
-          msystem: mingw64
-          update: true
-          install: >-
-            git cmake ninja pkgconf
+          msystem: mingw64 # Use the MinGW-w64 environment
+          update: true     # Update MSYS2 packages
+          install: >-      # Install necessary build tools and dependencies
             mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-freetype
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            git
+
+      # 3. Setup ccache for faster C/C++ compilation (if not in a container or MSYS2)
+      # ccache is generally not used inside containers unless explicitly set up there
+      # MSYS2 has its own package management, using ccache might need specific setup
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2.17
+        if: matrix.platform.container == '' && !contains(matrix.platform.name, 'MSYS2')
+        with:
+          # Unique key for caching, including config name
+          key: ${{ runner.os }}-${{ matrix.platform.name }}-${{ matrix.config.name }}-ccache-${{ github.ref }}-${{ github.sha }}
+          # Fallback keys for cache restoration
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.platform.name }}-${{ matrix.config.name }}-ccache-${{ github.ref }}-
+            ${{ runner.os }}-${{ matrix.platform.name }}-${{ matrix.config.name }}-ccache-
+          # Maximum cache size
+          max-size: 1G
+
+      # 4. Install Dependencies (specific to OS/Container)
+      - name: Install Ubuntu Dependencies
+        if: runner.os == 'Linux' && matrix.platform.container == ''
+        run: sudo apt-get update && sudo apt-get install -y libxrandr-dev libxcursor-dev libxi-dev libudev-dev libflac-dev libvorbis-dev libgl1-mesa-dev libegl1-mesa-dev libfreetype-dev
+
+      - name: Install MSYS2 Dependencies (Example - Adapt as needed)
+        if: contains(matrix.platform.name, 'MSYS2')
+        run: |
+          # Install library dependencies using pacman within the MSYS2 shell
+          pacman -S --noconfirm --needed \
+            mingw-w64-x86_64-sfml \
             mingw-w64-x86_64-openal
-            mingw-w64-x86_64-libvorbis
-            mingw-w64-x86_64-flac
+          # Add other dependencies here
 
-      - name: Set VCPKG Triplet Env Var (Windows MSVC)
-        if: runner.os == 'Windows' && !contains(matrix.preset.name, 'msys2')
+      - name: Install Fedora Dependencies
+        if: matrix.platform.container == 'fedora:latest'
         run: |
-          if [[ "${{ matrix.preset.name }}" == *static* ]]; then
-            echo "Setting VCPKG_DEFAULT_TRIPLET=x64-windows-static"
-            echo "VCPKG_DEFAULT_TRIPLET=x64-windows-static" >> $GITHUB_ENV
-          else
-            echo "Setting VCPKG_DEFAULT_TRIPLET=x64-windows"
-            echo "VCPKG_DEFAULT_TRIPLET=x64-windows" >> $GITHUB_ENV
-          fi
-        shell: bash
-
-      - name: Setup vcpkg and Install Dependencies (Windows MSVC)
-        id: vcpkg # *** Give the step an ID to access its outputs ***
-        if: runner.os == 'Windows' && !contains(matrix.preset.name, 'msys2')
-        uses: lukka/run-vcpkg@v11
-        with:
-          # Use action's default location for vcpkg checkout
-          vcpkgGitCommitId: 'b02e341c927f16d991edbd915d8ea43eac52096c'
-          runVcpkgInstall: true
-
-      - name: Export VCPKG_ROOT (Windows MSVC)
-        if: runner.os == 'Windows' && !contains(matrix.preset.name, 'msys2')
-        # Export the path determined by the previous step's output
-        run: echo "VCPKG_ROOT=${{ steps.vcpkg.outputs.vcpkgDirectory }}" >> $GITHUB_ENV
-
-      - name: Setup ccache (Unix)
-        uses: hendrikmuhs/ccache-action@v1.2
-        if: runner.os != 'Windows' && matrix.preset.container == null
-        with:
-          key: ccache-${{ matrix.preset.name }}-${{ runner.os }}
-
-      - name: Install Dependencies (Ubuntu Runner)
-        if: runner.os == 'Linux' && matrix.preset.container == null
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build ccache git pkg-config ca-certificates \
-            libgl1-mesa-dev libudev-dev libxrandr-dev libxcursor-dev libxi-dev \
-            libopenal-dev libflac-dev libvorbis-dev libfreetype-dev
-
-      - name: Install Dependencies (Fedora Container)
-        if: contains(matrix.preset.name, 'fedora')
-        run: |
-          dnf install -y \
-            gcc gcc-c++ cmake ninja-build git pkgconf ca-certificates \
+          dnf install -y gcc gcc-c++ cmake make git \
             libXrandr-devel libXcursor-devel libXi-devel systemd-devel \
-            flac-devel libvorbis-devel mesa-libGL-devel mesa-libEGL-devel \
-            freetype-devel openal-soft-devel
+            flac-devel libvorbis-devel mesa-libGL-devel mesa-libEGL-devel freetype-devel
 
-      - name: Install Dependencies (ArchLinux Container)
-        if: contains(matrix.preset.name, 'archlinux')
+      - name: Install ArchLinux Dependencies
+        if: matrix.platform.container == 'archlinux:latest'
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed \
-            base-devel cmake ninja git pkgconf ca-certificates \
-            libxrandr libxcursor libxi systemd \
-            flac libvorbis mesa freetype2 openal
+          pacman -S --noconfirm base-devel cmake git \
+            libxrandr libxcursor libxi systemd-libs \
+            flac libvorbis mesa freetype2
 
-      - name: Install Dependencies (Ubuntu Container)
-        if: matrix.preset.container == 'ubuntu:latest'
+      # 5. Configure CMake Build (Conditional Logic)
+
+      # 5a. Configure MSYS2 (No LTO, Ninja generator)
+      - name: Configure MSYS2 Build
+        if: contains(matrix.platform.name, 'MSYS2')
         run: |
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update -qq
-          apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build git pkg-config ca-certificates \
-            libgl1-mesa-dev libudev-dev libxrandr-dev libxcursor-dev libxi-dev \
-            libopenal-dev libflac-dev libvorbis-dev libfreetype-dev
+          # PATH should be correctly set by setup-msys2 action
+          # Explicitly use Ninja generator as it's installed
+          # Pass matrix flags (contains BUILD_SHARED_LIBS and CMAKE_BUILD_TYPE)
+          # Add minimum policy version
+          cmake -G "Ninja" -B build ${{ matrix.config.flags }} \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+            # Compilers are usually picked up from PATH correctly now
+            # -DCMAKE_C_COMPILER=/mingw64/bin/gcc.exe \
+            # -DCMAKE_CXX_COMPILER=/mingw64/bin/g++.exe
 
-      - name: Install Dependencies (macOS)
-        if: runner.os == 'macOS'
+      # 5b. Configure Linux Host Builds (Use ccache, add LTO for RelWithDebInfo)
+      - name: Configure Linux Host Build
+        if: runner.os == 'Linux' && matrix.platform.container == '' && !contains(matrix.platform.name, 'MSYS2') # Exclude MSYS2 again just to be safe
         run: |
-          brew update --quiet
-          brew install cmake ninja ccache pkg-config freetype openal-soft libvorbis flac ca-certificates
+          cmake_extra_flags=""
+          # Add LTO only for RelWithDebInfo builds
+          if [[ "${{ matrix.config.name }}" == *"RelWithDebInfo"* ]]; then
+            cmake_extra_flags="$cmake_extra_flags -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
+          fi
+          
+          # Add ccache launchers
+          cmake_extra_flags="$cmake_extra_flags -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
+          
+          # Base command
+          cmake -B build ${{ matrix.platform.flags }} ${{ matrix.config.flags }} ${cmake_extra_flags} \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
-      # --- Configure Step (Unified) ---
-      - name: Configure Build using Preset
-        shell: bash
+      # 5c. Configure Linux Container Builds (No ccache, add LTO for RelWithDebInfo)
+      - name: Configure Linux Container Build
+        if: runner.os == 'Linux' && matrix.platform.container != ''
         run: |
-          cmake_extra_args="" # Initialize empty
+          cmake_extra_flags=""
+          # Add LTO only for RelWithDebInfo builds
+          if [[ "${{ matrix.config.name }}" == *"RelWithDebInfo"* ]]; then
+            cmake_extra_flags="$cmake_extra_flags -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON"
+          fi
+          
+          # Base command
+          cmake -B build ${{ matrix.platform.flags }} ${{ matrix.config.flags }} ${cmake_extra_flags} \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
-          # MSYS2 Specific Setup
-          if [[ "${{ runner.os }}" == "Windows" && "${{ contains(matrix.preset.name, 'msys2') }}" == "true" ]]; then
-             export PATH=/mingw64/bin:$PATH
-             # No CMAKE_MAKE_PROGRAM override, rely on PATH + preset generator
+      # 5d. Configure Other Platforms (Windows non-MSYS2, macOS - Use ccache, no explicit LTO here)
+      # LTO might be enabled by default by CMake/Compiler on Release types for these platforms,
+      # but we aren't explicitly forcing it here like on Linux.
+      - name: Configure Standard Build (Windows/macOS)
+        if: (runner.os == 'Windows' && !contains(matrix.platform.name, 'MSYS2')) || runner.os == 'macOS'
+        run: |
+          cmake_extra_flags=""
+          # Add ccache launchers if not in a container (redundant check, but safe)
+          if [[ -z "${{ matrix.platform.container }}" ]]; then
+             cmake_extra_flags="$cmake_extra_flags -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
           fi
 
-          # Windows MSVC Specific Setup
-          if [[ "${{ runner.os }}" == "Windows" && "${{ !contains(matrix.preset.name, 'msys2') }}" == "true" ]]; then
-             # *** Use forward slashes and quote the path for CMake command line ***
-             # *** Access VCPKG_ROOT reliably via env context ***
-             toolchain_path="${{ env.VCPKG_ROOT }}/scripts/buildsystems/vcpkg.cmake"
-             echo "Attempting to use Toolchain File: ${toolchain_path}"
-             # Add quoting suitable for bash command line interpretation
-             cmake_extra_args="-DCMAKE_TOOLCHAIN_FILE=\"${toolchain_path}\""
-          fi
+          # Base command
+          cmake -B build ${{ matrix.platform.flags }} ${{ matrix.config.flags }} ${cmake_extra_flags} \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        # Use default shell for Windows/macOS (pwsh/zsh respectively) unless bash explicitly needed
 
-          # Run cmake with preset and potential extra args
-          # Use eval to handle potential quoting issues in extra args correctly
-          eval cmake --preset ${{ matrix.preset.name }} ${cmake_extra_args}
-
-      # --- Build Step (Unified) ---
-      - name: Build Project
-        shell: bash
+      # 6. Build Project
+      - name: Build
         run: |
-          if [[ "${{ runner.os }}" == "Windows" && "${{ !contains(matrix.preset.name, 'msys2') }}" == "true" ]]; then
-            build_type=$(echo "${{ matrix.preset.name }}" | grep -oP '(debug|release|relwithdebinfo)$' || echo "unknown")
-            if [[ "$build_type" == "unknown" ]]; then
-              echo "Error: Could not determine build type from preset name '${{ matrix.preset.name }}'"
-              exit 1
+          # Determine the build type argument for multi-config generators (like Visual Studio)
+          # For single-config generators (Makefiles, Ninja), CMAKE_BUILD_TYPE is primary.
+          # This handles both cases reasonably well.
+          build_type_arg=""
+          if [[ "${{ runner.os }}" == "Windows" && "${{ matrix.platform.name }}" != *"MSYS2"* ]]; then
+            # For Visual Studio, use the config name derived from the matrix
+            if [[ "${{ matrix.config.name }}" == *"Debug"* ]]; then
+              build_type_arg="--config Debug"
+            else # Both RelWithDebInfo configs map to RelWithDebInfo here
+              build_type_arg="--config RelWithDebInfo"
             fi
-            config_flag="--config ${build_type^}"
-          else
-            config_flag=""
           fi
-          cmake --build --preset ${{ matrix.preset.name }} ${config_flag}
 
-      # Optional Test Step ...
+          # Run the build command
+          cmake --build build ${build_type_arg} --parallel # Use --parallel for faster builds
