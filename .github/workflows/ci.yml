@@ -9,11 +9,6 @@ defaults:
   run:
     shell: bash # Default shell unless overridden
 
-env:
-# Default build type (can be overridden by matrix, but useful as a fallback)
-# BUILD_TYPE: RelWithDebInfo # Not strictly needed as matrix defines CMAKE_BUILD_TYPE explicitly
-# Global environment variables can go here
-
 jobs:
   build:
     # Job name dynamically generated from the matrix values
